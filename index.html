@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <title>🌷 Cozy Bloom Tic Tac Toe</title>
+
+        <style>
+            @import url("https://fonts.googleapis.com/css2?family=Quicksand:wght@500;700&display=swap");
+
+            * {
+                box-sizing: border-box;
+                font-family: "Quicksand", sans-serif;
+            }
+
+            body {
+                margin: 0;
+                height: 100vh;
+                overflow: hidden;
+                background: #fdeff5;
+            }
+
+            /* 🌈 Mouse gradient */
+            #gradient-layer {
+                position: fixed;
+                inset: -25%;
+                pointer-events: none;
+                filter: blur(70px);
+                transition: background 0.15s linear;
+            }
+
+            /* 🌸 Falling petals */
+            #petal-layer {
+                position: fixed;
+                inset: 0;
+                pointer-events: none;
+                overflow: hidden;
+            }
+
+            .petal {
+                position: absolute;
+                top: -40px;
+                font-size: 22px;
+                opacity: 0.25;
+                filter: blur(0.4px);
+                animation: fall linear forwards;
+            }
+
+            @keyframes fall {
+                from {
+                    transform: translateY(-60px) rotate(0deg);
+                }
+                to {
+                    transform: translateY(110vh) rotate(360deg);
+                }
+            }
+
+            /* 🌼 App */
+            .app {
+                position: relative;
+                z-index: 2;
+                height: 100vh;
+                display: grid;
+                place-items: center;
+            }
+
+            .card {
+                background: rgba(255, 255, 255, 0.88);
+                backdrop-filter: blur(12px);
+                padding: 32px 40px;
+                border-radius: 28px;
+                width: 360px;
+                text-align: center;
+                box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+            }
+
+            h1 {
+                margin: 0;
+                color: #ff7aa2;
+            }
+
+            .status {
+                margin: 12px 0 18px;
+                color: #666;
+            }
+
+            .board {
+                display: grid;
+                grid-template-columns: repeat(3, 90px);
+                gap: 12px;
+                justify-content: center;
+            }
+
+            .cell {
+                height: 90px;
+                border-radius: 18px;
+                background: #fff;
+                box-shadow:
+                    inset 0 0 0 2px #ffd3e1,
+                    0 6px 12px rgba(0, 0, 0, 0.05);
+                font-size: 2.4rem;
+                cursor: pointer;
+                display: grid;
+                place-items: center;
+                transition:
+                    transform 0.15s ease,
+                    background 0.2s ease;
+            }
+
+            .cell:hover {
+                transform: scale(1.06);
+                background: #fff4f8;
+            }
+
+            .x {
+                color: #ff6fa1;
+            }
+            .o {
+                color: #6fcfb0;
+            }
+
+            button {
+                margin-top: 20px;
+                border: none;
+                border-radius: 22px;
+                padding: 10px 26px;
+                background: linear-gradient(135deg, #ff9ac1, #ffc3d9);
+                color: white;
+                cursor: pointer;
+                box-shadow: 0 6px 14px rgba(255, 154, 193, 0.45);
+                transition: transform 0.15s ease;
+            }
+
+            button:hover {
+                transform: scale(1.05);
+            }
+        </style>
+    </head>
+
+    <body>
+        <div id="gradient-layer"></div>
+        <div id="petal-layer"></div>
+
+        <div class="app">
+            <div class="card">
+                <h1>Cozy Bloom Tic-Tac-Toe</h1>
+                <div class="status" id="status">Player X’s turn 🌸</div>
+                <div class="board" id="board"></div>
+                <button id="reset">Restart 🌱</button>
+            </div>
+        </div>
+
+        <script>
+            /* 🌈 Mouse reactive gradient */
+            const gradient = document.getElementById("gradient-layer");
+
+            document.addEventListener("mousemove", (e) => {
+                const x = (e.clientX / window.innerWidth) * 100;
+                const y = (e.clientY / window.innerHeight) * 100;
+
+                gradient.style.background = `
+    radial-gradient(circle at ${x}% ${y}%,
+      rgba(255,190,215,0.55),
+      rgba(200,255,235,0.35),
+      transparent 60%)
+  `;
+            });
+
+            /* 🌸 Petal generator */
+            const petalLayer = document.getElementById("petal-layer");
+            const petals = ["🌸", "🌷", "🌼", "🍃"];
+
+            function spawnPetal() {
+                const petal = document.createElement("div");
+                petal.className = "petal";
+                petal.textContent =
+                    petals[Math.floor(Math.random() * petals.length)];
+
+                const size = 18 + Math.random() * 18;
+                petal.style.fontSize = size + "px";
+                petal.style.left = Math.random() * window.innerWidth + "px";
+                petal.style.opacity = 0.15 + Math.random() * 0.2;
+
+                const duration = 6 + Math.random() * 6;
+                petal.style.animationDuration = duration + "s";
+
+                petalLayer.appendChild(petal);
+
+                setTimeout(() => petal.remove(), duration * 1000);
+            }
+
+            setInterval(spawnPetal, 600);
+
+            /* 🎮 Game logic */
+            const boardEl = document.getElementById("board");
+            const statusEl = document.getElementById("status");
+            const resetBtn = document.getElementById("reset");
+
+            let board = Array(9).fill("");
+            let current = "X";
+            let active = true;
+
+            const wins = [
+                [0, 1, 2],
+                [3, 4, 5],
+                [6, 7, 8],
+                [0, 3, 6],
+                [1, 4, 7],
+                [2, 5, 8],
+                [0, 4, 8],
+                [2, 4, 6],
+            ];
+
+            function render() {
+                boardEl.innerHTML = "";
+                board.forEach((value, index) => {
+                    const cell = document.createElement("div");
+                    cell.className = "cell";
+                    cell.textContent = value;
+                    if (value) cell.classList.add(value.toLowerCase());
+                    cell.onclick = () => play(index);
+                    boardEl.appendChild(cell);
+                });
+            }
+
+            function play(index) {
+                if (!active || board[index]) return;
+
+                board[index] = current;
+                render();
+
+                if (wins.some((p) => p.every((i) => board[i] === current))) {
+                    statusEl.textContent = `Player ${current} wins ✨`;
+                    active = false;
+                    return;
+                }
+
+                if (board.every((c) => c)) {
+                    statusEl.textContent = "Draw 🌼";
+                    active = false;
+                    return;
+                }
+
+                current = current === "X" ? "O" : "X";
+                statusEl.textContent = `Player ${current}’s turn 🌸`;
+            }
+
+            resetBtn.onclick = () => {
+                board = Array(9).fill("");
+                current = "X";
+                active = true;
+                statusEl.textContent = "Player X’s turn 🌸";
+                render();
+            };
+
+            render();
+        </script>
+    </body>
+</html>
